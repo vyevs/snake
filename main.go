@@ -52,18 +52,43 @@ func run() {
 	rand.Seed(time.Now().UnixNano())
 
 	snake := snake{
-		pieces:   []vec2{randPos(gridCols, gridRows)},
-		velocity: randVelocity(),
+		pieces: []vec2{
+			randomPosition(gridCols, gridRows),
+		},
+		direction: directions[rand.Intn(len(directions))], // random initial direction
 		max: vec2{
 			x: gridCols,
 			y: gridRows,
 		},
-		foodPos: randPos(gridCols, gridRows),
+		foodPos: randomPosition(gridCols, gridRows),
+	}
+
+	// draw an initial tail based on the initial direction, always behind the direction we are headed
+	switch snake.direction {
+	case DirectionUp:
+		for i := 0; i < 10; i++ {
+			lastPiece := snake.pieces[0]
+			snake.pieces = append([]vec2{vec2{x: lastPiece.x, y: lastPiece.y - 1}}, snake.pieces...)
+		}
+	case DirectionDown:
+		for i := 0; i < 10; i++ {
+			lastPiece := snake.pieces[0]
+			snake.pieces = append([]vec2{vec2{x: lastPiece.x, y: lastPiece.y + 1}}, snake.pieces...)
+		}
+	case DirectionLeft:
+		for i := 0; i < 10; i++ {
+			lastPiece := snake.pieces[0]
+			snake.pieces = append([]vec2{vec2{x: lastPiece.x + 1, y: lastPiece.y}}, snake.pieces...)
+		}
+	case DirectionRight:
+		for i := 0; i < 10; i++ {
+			lastPiece := snake.pieces[0]
+			snake.pieces = append([]vec2{vec2{x: lastPiece.x - 1, y: lastPiece.y}}, snake.pieces...)
+		}
+
 	}
 
 	var paused bool
-
-	ticker := time.Tick(50 * time.Millisecond)
 
 	for !window.Closed() {
 		if window.JustPressed(pixelgl.KeySpace) {
@@ -71,22 +96,18 @@ func run() {
 		}
 
 		if !paused {
-			if window.JustPressed(pixelgl.KeyLeft) && snake.velocity.x != 1 {
-				snake.velocity.y = 0
-				snake.velocity.x = -1
-				fmt.Println("LEFT")
-			} else if window.JustPressed(pixelgl.KeyRight) && snake.velocity.x != -1 {
-				snake.velocity.y = 0
-				snake.velocity.x = 1
-				fmt.Println("RIGHT")
-			} else if window.JustPressed(pixelgl.KeyUp) && snake.velocity.y != -1 {
-				snake.velocity.x = 0
-				snake.velocity.y = 1
-				fmt.Println("UP")
-			} else if window.JustPressed(pixelgl.KeyDown) && snake.velocity.y != 1 {
-				snake.velocity.x = 0
-				snake.velocity.y = -1
-				fmt.Println("DOWN")
+			if window.JustPressed(pixelgl.KeyLeft) && snake.direction.x != 1 {
+				snake.direction.y = 0
+				snake.direction.x = -1
+			} else if window.JustPressed(pixelgl.KeyRight) && snake.direction.x != -1 {
+				snake.direction.y = 0
+				snake.direction.x = 1
+			} else if window.JustPressed(pixelgl.KeyUp) && snake.direction.y != -1 {
+				snake.direction.x = 0
+				snake.direction.y = 1
+			} else if window.JustPressed(pixelgl.KeyDown) && snake.direction.y != 1 {
+				snake.direction.x = 0
+				snake.direction.y = -1
 			}
 
 			snake = snake.move()
@@ -101,15 +122,13 @@ func run() {
 		snake.draw(window)
 
 		window.Update()
-
-		<-ticker
 	}
 }
 
 type snake struct {
 	pieces []vec2
 
-	velocity vec2
+	direction vec2
 
 	max vec2
 
@@ -124,14 +143,14 @@ type vec2 struct {
 }
 
 func (s snake) move() snake {
-	newX := s.pieces[len(s.pieces)-1].x + s.velocity.x
+	newX := s.pieces[len(s.pieces)-1].x + s.direction.x
 	if newX >= s.max.x {
 		newX = newX - s.max.x
 	} else if newX < 0 {
 		newX = s.max.x + newX
 	}
 
-	newY := s.pieces[len(s.pieces)-1].y + s.velocity.y
+	newY := s.pieces[len(s.pieces)-1].y + s.direction.y
 	if newY >= s.max.y {
 		newY = newY - s.max.y
 	} else if newY < 0 {
@@ -143,7 +162,7 @@ func (s snake) move() snake {
 	foodPos := s.foodPos
 	var ate bool
 	if newPos == s.foodPos {
-		foodPos = randPos(s.max.x, s.max.y)
+		foodPos = randomPosition(s.max.x, s.max.y)
 		ate = true
 	}
 
@@ -154,7 +173,6 @@ func (s snake) move() snake {
 	var dead bool
 	for _, piece := range s.pieces {
 		if newPos == piece {
-			fmt.Printf("newPos %+v, piece %+v\n", newPos, piece)
 			dead = true
 		}
 	}
@@ -162,11 +180,11 @@ func (s snake) move() snake {
 	s.pieces = append(s.pieces, newPos)
 
 	return snake{
-		pieces:   s.pieces,
-		velocity: s.velocity,
-		max:      s.max,
-		dead:     dead,
-		foodPos:  foodPos,
+		pieces:    s.pieces,
+		direction: s.direction,
+		max:       s.max,
+		dead:      dead,
+		foodPos:   foodPos,
 	}
 }
 
@@ -221,32 +239,38 @@ func (s snake) draw(target *pixelgl.Window) {
 	sprite.Draw(target, pixel.IM.Moved(target.Bounds().Center()))
 }
 
-func randPos(maxX, maxY int) vec2 {
+func randomPosition(maxX, maxY int) vec2 {
 	return vec2{
 		x: rand.Intn(maxX),
 		y: rand.Intn(maxY),
 	}
 }
 
-var possibleVelocities = []vec2{
-	vec2{
-		x: -1,
-		y: 0,
-	},
-	vec2{
-		x: 0,
-		y: -1,
-	},
-	vec2{
-		x: 1,
-		y: 0,
-	},
-	vec2{
+var (
+	DirectionUp = vec2{
 		x: 0,
 		y: 1,
-	},
-}
+	}
 
-func randVelocity() vec2 {
-	return possibleVelocities[rand.Intn(len(possibleVelocities))]
+	DirectionDown = vec2{
+		x: 0,
+		y: -1,
+	}
+
+	DirectionLeft = vec2{
+		x: -1,
+		y: 0,
+	}
+
+	DirectionRight = vec2{
+		x: 1,
+		y: 0,
+	}
+)
+
+var directions = []vec2{
+	DirectionUp,
+	DirectionDown,
+	DirectionLeft,
+	DirectionRight,
 }
