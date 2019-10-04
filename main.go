@@ -28,9 +28,14 @@ const (
 	windowHeight = gridRows * cellHeightPixels
 )
 
+var (
+	bgColor     = colornames.White
+	entityColor = colornames.Black
+)
+
 func run() {
 	window, err := pixelgl.NewWindow(pixelgl.WindowConfig{
-		Title: "Bounce",
+		Title: "Snake",
 		Bounds: pixel.Rect{
 			Min: pixel.Vec{
 				X: 0,
@@ -44,6 +49,10 @@ func run() {
 		VSync: true,
 		//Resizable: true,
 	})
+
+	fmt.Printf("rows: %d, cols: %d\n", gridRows, gridCols)
+	fmt.Printf("cellWidthPixels: %d, cellHeightPixels: %d\n", cellWidthPixels, cellHeightPixels)
+	fmt.Printf("windowWidth: %d, windowHeight: %d\n", windowWidth, windowHeight)
 
 	if err != nil {
 		log.Fatal(err)
@@ -66,26 +75,53 @@ func run() {
 	// draw an initial tail based on the initial direction, always behind the direction we are headed
 	switch snake.direction {
 	case DirectionUp:
+		fmt.Println("INITIAL UP")
 		for i := 0; i < 10; i++ {
 			lastPiece := snake.pieces[0]
-			snake.pieces = append([]vec2{vec2{x: lastPiece.x, y: lastPiece.y - 1}}, snake.pieces...)
+
+			newPiece := vec2{x: lastPiece.x, y: lastPiece.y - 1}
+			if newPiece.y < 0 {
+				newPiece.y = gridRows - 1
+			}
+
+			snake.pieces = append([]vec2{newPiece}, snake.pieces...)
 		}
 	case DirectionDown:
+		fmt.Println("INITIAL DOWN")
 		for i := 0; i < 10; i++ {
 			lastPiece := snake.pieces[0]
-			snake.pieces = append([]vec2{vec2{x: lastPiece.x, y: lastPiece.y + 1}}, snake.pieces...)
+
+			newPiece := vec2{x: lastPiece.x, y: lastPiece.y + 1}
+			if newPiece.y > gridRows {
+				newPiece.y = 0
+			}
+
+			snake.pieces = append([]vec2{newPiece}, snake.pieces...)
 		}
 	case DirectionLeft:
+		fmt.Println("INITIAL LEFT")
 		for i := 0; i < 10; i++ {
 			lastPiece := snake.pieces[0]
-			snake.pieces = append([]vec2{vec2{x: lastPiece.x + 1, y: lastPiece.y}}, snake.pieces...)
+
+			newPiece := vec2{x: lastPiece.x + 1, y: lastPiece.y}
+			if newPiece.x > gridCols {
+				newPiece.x = 0
+			}
+
+			snake.pieces = append([]vec2{newPiece}, snake.pieces...)
 		}
 	case DirectionRight:
+		fmt.Println("INITIAL RIGHT")
 		for i := 0; i < 10; i++ {
 			lastPiece := snake.pieces[0]
-			snake.pieces = append([]vec2{vec2{x: lastPiece.x - 1, y: lastPiece.y}}, snake.pieces...)
-		}
 
+			newPiece := vec2{x: lastPiece.x - 1, y: lastPiece.y}
+			if newPiece.x < 0 {
+				newPiece.x = gridCols - 1
+			}
+
+			snake.pieces = append([]vec2{newPiece}, snake.pieces...)
+		}
 	}
 
 	var paused bool
@@ -215,7 +251,11 @@ func (s snake) draw(target *pixelgl.Window) {
 			for j := 0; j < cellHeightPixels; j++ {
 				piecePixelIdx := piecePixelIdx + j*windowWidth
 
-				pixels[piecePixelIdx] = colornames.Black
+				if piecePixelIdx < 0 {
+					fmt.Printf("piece: (%d, %d), idx: %d\n", piece.x, piece.y, piecePixelIdx)
+				}
+
+				pixels[piecePixelIdx] = entityColor
 			}
 		}
 	}
@@ -228,13 +268,13 @@ func (s snake) draw(target *pixelgl.Window) {
 		for j := 0; j < cellHeightPixels; j++ {
 			foodPixelIdx := foodPixelIdx + j*windowWidth
 
-			pixels[foodPixelIdx] = colornames.Black
+			pixels[foodPixelIdx] = entityColor
 		}
 	}
 
 	sprite := pixel.NewSprite(&picData, picData.Bounds())
 
-	target.Clear(colornames.White)
+	target.Clear(bgColor)
 
 	sprite.Draw(target, pixel.IM.Moved(target.Bounds().Center()))
 }
