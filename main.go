@@ -126,7 +126,12 @@ func run() {
 
 	var paused bool
 
+	lastTime := time.Now()
+
 	for !window.Closed() {
+		current := time.Now()
+		elapsed := time.Since(lastTime)
+
 		if window.JustPressed(pixelgl.KeySpace) {
 			paused = !paused
 		}
@@ -146,7 +151,7 @@ func run() {
 				snake.direction.y = -1
 			}
 
-			snake = snake.move()
+			snake = snake.move(elapsed)
 
 			if snake.dead {
 				fmt.Println("You died")
@@ -158,6 +163,8 @@ func run() {
 		snake.draw(window)
 
 		window.Update()
+
+		lastTime = current
 	}
 }
 
@@ -171,6 +178,8 @@ type snake struct {
 	dead bool
 
 	foodPos vec2
+
+	accumulated time.Duration
 }
 
 type vec2 struct {
@@ -178,7 +187,15 @@ type vec2 struct {
 	y int
 }
 
-func (s snake) move() snake {
+func (s snake) move(deltaTime time.Duration) snake {
+	s.accumulated += deltaTime
+
+	if s.accumulated < 50*time.Millisecond {
+		return s
+	}
+
+	s.accumulated -= 50 * time.Millisecond
+
 	newX := s.pieces[len(s.pieces)-1].x + s.direction.x
 	if newX >= s.max.x {
 		newX = newX - s.max.x
@@ -216,11 +233,12 @@ func (s snake) move() snake {
 	s.pieces = append(s.pieces, newPos)
 
 	return snake{
-		pieces:    s.pieces,
-		direction: s.direction,
-		max:       s.max,
-		dead:      dead,
-		foodPos:   foodPos,
+		pieces:      s.pieces,
+		direction:   s.direction,
+		max:         s.max,
+		dead:        dead,
+		foodPos:     foodPos,
+		accumulated: s.accumulated,
 	}
 }
 
